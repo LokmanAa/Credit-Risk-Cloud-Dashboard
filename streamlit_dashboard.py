@@ -14,22 +14,20 @@ from sklearn.preprocessing import MinMaxScaler
 from matplotlib.patches import Arc
 import shap
 
-# Fonctions relatives à la jauge de risque du client
+# Indicateur de risque du client
 def degree_range(n):
     start = np.linspace(0,180,n+1, endpoint=True)[0:-1]
     end = np.linspace(0,180,n+1, endpoint=True)[1::]
     mid_points = start + ((end-start)/2.)
     return np.c_[start, end], mid_points
 
-
 def rot_text(ang):
     rotation = np.degrees(np.radians(ang) * np.pi / np.pi - np.radians(90))
     return rotation
 
-
-def gauge(arrow=0.5, labels=['Faible', 'Moyen', 'Elevé', 'Très élevé'],
+def gauge(arrow=0.4, labels=['Faible', 'Modéré', 'Elevé', 'Très élevé'],
           title='', min_val=0, max_val=100, threshold=-1.0,
-          colors='RdYlGn_r', n_colors=-1, ax=None, figsize=(3, 2)):
+          colors='RdYlGn_r', n_colors=-1, ax=None, figsize=(2, 1.3)):
     N = len(labels)
     n_colors = n_colors if n_colors > 0 else N
     if isinstance(colors, str):
@@ -53,12 +51,12 @@ def gauge(arrow=0.5, labels=['Faible', 'Moyen', 'Elevé', 'Très élevé'],
     for mid, lab in zip(mid_points, labels):
         ax.text(a * np.cos(np.radians(mid)), a * np.sin(np.radians(mid)), lab, \
                 horizontalalignment='center', verticalalignment='center', fontsize=12, \
-                fontweight='bold', rotation=rot_text(mid))
+                fontweight=None, rotation=rot_text(mid))
 
     ax.add_patch(Rectangle((-0.4, -0.1), 0.8, 0.1, facecolor='w', lw=2))
     ax.text(0, -0.10, title, horizontalalignment='center', verticalalignment='center', fontsize=20, fontweight='bold')
 
-    # Seuils de la jauge
+    # Seuils de l'indicateur
     if threshold > min_val and threshold < max_val:
         pos = 180 * (max_val - threshold) / (max_val - min_val)
         a = 0.25;
@@ -67,7 +65,7 @@ def gauge(arrow=0.5, labels=['Faible', 'Moyen', 'Elevé', 'Très élevé'],
         y = np.sin(np.radians(pos))
         ax.arrow(a * x, a * y, b * x, b * y, width=0.01, head_width=0.0, head_length=0, ls='--', fc='r', ec='r')
 
-    # Flèche de la jauge
+    # Flèche 
     pos = 180 - (180 * (max_val - arrow) / (max_val - min_val))
     pos_normalized = (arrow - min_val) / (max_val - min_val)
     angle_range = 180
@@ -83,64 +81,63 @@ def gauge(arrow=0.5, labels=['Faible', 'Moyen', 'Elevé', 'Très élevé'],
     ax.axis('equal')
     return ax
 
-
-# Paramètres Streamlit (v1.25)
+# Streamlit (v1.25)
 st.set_option('deprecation.showPyplotGlobalUse', False)
 st.set_option('deprecation.showfileUploaderEncoding', False)
 
-# Ajout logo
+# Logo
 logo_path = 'logo.jpg'
 st.sidebar.image(logo_path, use_column_width=True)
 
-# Définition groupe de colonnes
+# Colonnes
 categorical_columns = ['Type contrat',
                        'Genre',
                        'Diplôme etude supérieure',
                        'Ville travail différente ville_résidence']
 
-# Charger le modèle à partir du fichier pickle
+# Modèle
 model_path = './saved_model/'
 with open('LightGBM_smote_tuned.pckl', 'rb') as f:
     model = pickle.load(f)
 
-# Charger les dataframes du dashboard
+# Data
 df_feature_importance = pd.read_csv('df_feature_importance_25.csv')
 df_feature_importance.drop('Unnamed: 0', axis=1, inplace=True)
 df_dashboard_final = pd.read_csv('df_dashboard_final.csv')
 df_dashboard_final.drop('Unnamed: 0', axis=1, inplace=True)
 
-# Titre du dashboard
-st.title('Risque de crédit client - Dashboard')
+# Titre
+st.title('Tableau de bord : risque client')
 
-# Encadré sur la partie gauche
-st.sidebar.title('Sélection du client')
-selected_client = st.sidebar.selectbox('Identifiant client :', df_dashboard_final['ID client'])
-predict_button = st.sidebar.button('Prédire')
+# Marge
+st.sidebar.title('Client')
+selected_client = st.sidebar.selectbox('Identifiant :', df_dashboard_final['ID client'])
+predict_button = st.sidebar.button('Calculer risque')
 
-# Obtention de l'index correspondant à l'ID client sélectionné
+# Index
 index = df_dashboard_final[df_dashboard_final['ID client'] == selected_client].index[0]
 
-# Affichage des informations du client sélectionné
+# Affichage 
 client_info = df_dashboard_final[df_dashboard_final['ID client'] == selected_client]
 st.subheader('Informations sur le client :')
 client_info.index = client_info['ID client']
 st.write(client_info[['Prédiction crédit', 'Score client (sur 100)', 'Type contrat', 'Genre', 'Âge']])
 
-# Obtention de la catégorie de prédiction crédit du client sélectionné
+# Prédiction
 selected_client_cat = df_dashboard_final.loc[index, 'Prédiction crédit']
 
-# DataFrame contenant la même catégorie de prédiction crédit que le client sélectionné
+# DataFrame prédiction
 df_customer = df_dashboard_final[df_dashboard_final['Prédiction crédit'] == selected_client_cat].copy()
 
 # Affichage de la jauge score client
-st.subheader('Niveau de risque client :')
+st.subheader('Niveau de risque :')
 score = client_info['Score client (sur 100)'].values[0]  # Récupérer le score du client
 fig, ax = plt.subplots(figsize=(5, 3))
 gauge(arrow=score, ax=ax)  # Appeler la fonction gauge() en passant le score du client
 st.pyplot(fig)
 
-# Partie droite de l'écran
-st.sidebar.title('Graphiques')
+# Ecran principal
+st.sidebar.title('Métriques')
 univariate_options = [col for col in df_dashboard_final.columns if col not in ['ID client', 'Prédiction crédit']]
 bivariate_options = [col for col in df_dashboard_final.columns if col not in ['ID client', 'Prédiction crédit']]
 
