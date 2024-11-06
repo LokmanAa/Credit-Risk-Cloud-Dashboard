@@ -1,6 +1,7 @@
 Dashboard Development & Technical Monitoring
 
 This project focuses on presenting your data science work through interactive dashboards and staying up-to-date with the latest trends in Data Science and AI. It includes two key components: creating a client-facing dashboard for decision-making and conducting technical monitoring to evaluate new tools and methodologies.
+ 
 Key Skills Acquired:
 
     Dashboard Development: Building interactive and user-friendly dashboards for data presentation using Streamlit or Flask.
